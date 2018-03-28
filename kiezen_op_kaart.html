@@ -1,0 +1,312 @@
+#
+input_geo=input
+{
+    Type: Geo;
+    Caption: "Kies een gemeente of deelgemeente";
+    Instruction: "Kies het gebied dat je interesseert.";
+    Level: [Geo.gemeente,Geo.deelgemeente];
+    Min: 0;
+    Max: 300;
+    Hidden: true;
+}
+#
+<!DOCTYPE html>
+<html lang="nl-NL">
+<head>
+    <meta charset="utf-8" />
+    <title>Stel een gebied samen via kaart</title>
+    <link type="text/css" rel="stylesheet" href="style/ipo_dynamic.css" />
+    <link type="text/css" rel="stylesheet" href="style/report_table.css" />
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol.css" integrity="sha256-rQq4Fxpq3LlPQ8yP11i6Z2lAo82b6ACDgd35CKyNEBw=" crossorigin="anonymous" />
+    <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol.js" integrity="sha256-77IKwU93jwIX7zmgEBfYGHcmeO0Fx2MoWB/ooh9QkBA=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.4.4/proj4.js" integrity="sha256-ROS+XfN+WVpU3giGt7Fwy92u3h4at1gN7Z5xQ2Ke1lw=" crossorigin="anonymous"></script>
+    <style>
+    .map {
+    	height: 350px;
+    	position: relative;
+    }
+    .map-overlay {
+        background: rgba(255,255,255,.8);
+        border-radius: 4px;
+        margin: 0;
+        padding: 5px;
+        position: absolute;
+        right: 5px;
+        top: 5px;
+        width: 150px;
+        z-index: 299;
+    }
+    ##geocode {
+        width: 100%;
+    }
+    ##geocode-result {
+        margin: 5px 0;
+        padding: 0 20px;
+    }
+    </style>
+</head>
+<body class="swingreport">
+    <div>&nbsp;</div>
+    <section class="container">
+        <section class="hoofdstuk">
+            <h1>Stel een gebied samen via kaart</h1>
+            <div id="map" class="map">
+                <div class="map-overlay">
+                    <div>
+                        <input type="text" name="geocode" id="geocode" placeholder="Zoek adres">
+                        <ol id="geocode-result"></ol>
+                    </div>
+                </div>
+            </div>
+            <div>
+                <label for="vectorlayer">Gebiedsindeling :</label>
+                <select name="vectorlayer" id="vectorlayer" autocomplete="off">
+                    <option value="5">Gemeente</option>
+                    <option value="6">Deelgemeente</option>
+                    <option value="9">Statistische sectoor</option>
+                </select>
+
+                <button id="clear-selection">Wis selectie</button>
+            </div>
+            <h3>Informatie over <span id="selection-list"></span> (<span id="selection-count"></span> gebieden)</h3>
+            <div id="linkcontainer"></div>
+            <p>De links hierboven geven je een rapport of een vertrekproject op basis van de gebieden die je op de kaart hebt aangeklikt. Standaard tonen we gemeenten, maar je kan dit ook voor deelgemeenten en statistische sectoren. Dan zijn er wel minder of geen rapporten beschikbaar.</p>
+            <p>Volledige lijst gebieden: <span id="selection-longlist"></span></p>
+        </section>
+        <div>&nbsp;</div>
+    </section>
+    <script>
+        var map;
+        var vectorLayer;
+        var markerLayer;
+        var markerFeature;
+        var selectInteraction;
+        var parameters = '#show(code(input_geo))#';
+
+        if (parameters.length > 0) {
+            parameters = parameters.split(',');
+        };
+
+        J$(document).ready(function() {
+            J$('##vectorlayer').off().on('change', function() {
+                loadGeoJSON(false);
+                clearSelection();
+            });
+
+            J$('##clear-selection').off().on('click', function() {
+                clearSelection();
+            });
+
+            J$('##geocode').off().on('keyup', function(event) {
+                var text = J$(this).val();
+
+                J$.getJSON('/jive/Presentation/GetAddressLocations', {
+                    searchTerm: text
+                }, function(json) {
+                    J$('##geocode-result').empty();
+
+                    if (typeof json.locations !== 'undefined' && json.locations.length > 0) {
+                        new ol.Collection(json.locations).forEach(function(item) {
+                            var li = document.createElement('li');
+                            var a = document.createElement('a');
+
+                            J$(a).attr('href', '##').text(item.address).on('click', function(event) {
+                                event.preventDefault();
+
+                                var coordinates = item.coord.replace(/,/g, '.').split(' ');
+                                coordinates[0] = parseFloat(coordinates[0]);
+                                coordinates[1] = parseFloat(coordinates[1]);
+
+                                var xy = proj4('EPSG:31370','EPSG:3857').forward(coordinates);
+
+                                markerFeature.setGeometry(new ol.geom.Point(xy));
+                                map.getView().animate({zoom: 15, center: xy});
+                            });
+
+                            J$(li).append(a).appendTo('##geocode-result');
+                        });
+                    }
+                });
+            });
+
+            // Timeout (in milliseconds) is used to "wait" for everything to be loaded (mainly OpenLayers)
+            // and THEN make our pretty things...
+            // If you switch Swing to show report in iframe, just replace this line by : setOpenLayers();
+            setTimeout(setOpenLayers, 1000);
+        });
+
+        J$(window).on('resize', function() {
+            map.updateSize();
+        });
+
+        function setOpenLayers() {
+            proj4.defs("EPSG:31370","+proj=lcc +lat_1=51.16666723333333 +lat_2=49.8333339 +lat_0=90 +lon_0=4.367486666666666 +x_0=150000.013 +y_0=5400088.438 +ellps=intl +towgs84=-106.869,52.2978,-103.724,0.3366,-0.457,1.8422,-1.2747 +units=m +no_defs");
+
+            vectorLayer = new ol.layer.Vector({
+                source: new ol.source.Vector(),
+                style: new ol.style.Style({
+                    fill: new ol.style.Fill({
+                        color: 'rgba(255,255,255,0.0)'
+                    }),
+                    stroke: new ol.style.Stroke({
+                        color: '##3399CC',
+                        width: 1.25
+                    })
+                })
+            });
+
+            markerFeature = new ol.Feature();
+            markerFeature.setStyle(new ol.style.Style({
+                image: new ol.style.Icon(({
+                    anchor: [0.5, 20],
+                    anchorXUnits: 'fraction',
+                    anchorYUnits: 'pixels',
+                    src: '/Admin/Report/Images/map-marker.png'
+                }))
+            }));
+            markerLayer = new ol.layer.Vector({
+                source: new ol.source.Vector({
+                    features: [markerFeature]
+                })
+            });
+
+            map = new ol.Map({
+                layers: [
+                    new ol.layer.Tile({
+                        source: new ol.source.OSM({
+                            url: 'https://tile.openstreetmap.be/osmbe-nl/{z}/{x}/{y}.png',
+                            attributions: [ ol.source.OSM.ATTRIBUTION, 'Achtergrondkaart via <a href="https://geo6.be/">GEO-6</a>' ]
+                        })
+                    }),
+                    vectorLayer,
+                    markerLayer
+                ],
+                target: 'map',
+                controls: ol.control.defaults({
+                    attributionOptions: {
+                        collapsible: false
+                    }
+                }),
+                view: new ol.View({
+                    center: [0, 0],
+                    zoom: 0
+                })
+            });
+
+            selectInteraction = new ol.interaction.Select({
+                toggleCondition: ol.events.condition.singleClick
+            });
+            selectInteraction.on('select', function() {
+                displaySelection();
+            });
+            map.addInteraction(selectInteraction);
+
+            if (parameters.length > 0) {
+                var mode = null;
+                var defaultSelection = [];
+
+                new ol.Collection(parameters).forEach(function(item) {
+                    item = item.match(/^([a-z]+)_(.+)$/);
+
+                    defaultSelection.push(item[2]);
+
+                    if (mode === null) {
+                        mode = item[1];
+                        switch (mode) {
+                            case 'gemeente': J$("##vectorlayer").val(5); break;
+                            case 'deelgemeente': J$("##vectorlayer").val(6); break;
+                        }
+
+                        loadGeoJSON(true, defaultSelection);
+                    }
+                });
+            } else {
+                loadGeoJSON(true);
+            }
+        }
+
+        function loadGeoJSON(fit, selection) {
+            var layer = parseInt(J$("##vectorlayer").val());
+
+            var file = null;
+            switch (layer) {
+                case 5: file = 'https://provincies.incijfers.be/Report/GeoJSON/gemeente4326_simp.txt'; break; // dit zijn gepubliceerde versies. Als je de file aanpast, moet je tijdelijke admin voor report zetten om op de nog-niet-gepubliceerde versie te werken
+                case 6: file = 'https://provincies.incijfers.be/Report/GeoJSON/deelgemeente4326_simp.txt'; break;
+                case 9: file = 'https://provincies.incijfers.be/Report/GeoJSON/statsec4326_simp.txt'; break;
+            };
+
+            if (file !== null) {
+                vectorLayer.getSource().clear();
+                J$.getJSON(file, function (json) {
+                    vectorLayer.getSource().addFeatures(
+                        (new ol.format.GeoJSON()).readFeatures(json, {featureProjection:'EPSG:3857'})
+                    );
+
+                    if (selection !== null) {
+                        new ol.Collection(selection).forEach(function(item) {
+                            item = item.toUpperCase().replace('_', '-');
+
+                            var feature = vectorLayer.getSource().getFeatureById(item);
+
+                            if (feature !== null) {
+                                selectInteraction.getFeatures().push(feature);
+                            }
+                        });
+                        displaySelection();
+                    }
+
+                    if (fit === true) {
+                        map.getView().fit(vectorLayer.getSource().getExtent());
+                    }
+                });
+            }
+        }
+
+        function displaySelection() {
+            var layer = parseInt(J$("##vectorlayer").val());
+            var count = selectInteraction.getFeatures().getLength();
+
+            var selection = [];
+            var list = [];
+            selectInteraction.getFeatures().forEach(function(feature) {
+                var properties = feature.getProperties();
+
+                list.push(properties.naam);
+
+                switch (layer) {
+                    case 5: selection.push('gemeente_' + properties.geoitem); break;
+                    case 6: selection.push('deelgemeente_' + properties.geoitem); break;
+                    case 9: selection.push('statsec_' + properties.geoitem); break;
+                };
+            });
+
+            J$('##selection-count').text(count);
+            J$('##selection-list').text(list.slice(0, 3).join(', ') + (list.length > 3 ? ', ...' : ''));
+            J$('##selection-longlist').text(list.join(', '));
+            J$('##linkcontainer').empty();
+
+            if (layer !== 9) {
+                J$('##linkcontainer').append(
+                    J$(document.createElement('a')).
+                        attr('href', 'https://provincies.incijfers.be/jive?report=steekkaart_demografie&keepworkspace=true&input_geo=' + selection.join(',')).
+                        text('Steekkaart Demografie')
+                );
+                J$('##linkcontainer').append('<br><br>');
+            }
+            J$('##linkcontainer').append(
+                J$(document.createElement('a')).
+                    attr('href', 'https://provincies.incijfers.be/jive?var=v1101_t&geoitem_codes=' + selection.join(',')).
+                    text('Vertrekproject voor je selectie')
+            );
+        }
+
+        function clearSelection() {
+            selectInteraction.getFeatures().clear();
+
+            J$('##selection-count').empty();
+            J$('##selection-list').empty();
+        }
+    </script>
+</body>
+</html>
