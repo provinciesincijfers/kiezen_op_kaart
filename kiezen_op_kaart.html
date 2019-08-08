@@ -4,7 +4,7 @@ input_geo=input
     Type: Geo;
     Caption: "Kies een gemeente of deelgemeente";
     Instruction: "Kies het gebied dat je interesseert.";
-    Level: [Geo.gemeente,Geo.deelgemeente];
+    Level: [Geo.gemeente];
     Min: 0;
     Max: 300;
     Hidden: true;
@@ -18,10 +18,11 @@ input_geo=input
     <link type="text/css" rel="stylesheet" href="style/ipo_dynamic.css" />
     <link type="text/css" rel="stylesheet" href="style/report_table.css" />
     <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol.css" integrity="sha256-rQq4Fxpq3LlPQ8yP11i6Z2lAo82b6ACDgd35CKyNEBw=" crossorigin="anonymous" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.2.4/jquery.min.js" integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44=" crossorigin="anonymous"></script>    
     <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.6.5/ol.js" integrity="sha256-77IKwU93jwIX7zmgEBfYGHcmeO0Fx2MoWB/ooh9QkBA=" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.4.4/proj4.js" integrity="sha256-ROS+XfN+WVpU3giGt7Fwy92u3h4at1gN7Z5xQ2Ke1lw=" crossorigin="anonymous"></script>
-    <style>
+<style>
     .map {
     	height: 350px;
     	position: relative;
@@ -64,14 +65,16 @@ input_geo=input
                 <select name="vectorlayer" id="vectorlayer" autocomplete="off">
                     <option value="5">Gemeente</option>
                     <option value="6">Deelgemeente</option>
-                    <option value="9">Statistische sectoor</option>
+                    <option value="7">Wijken</option>
+                    <option value="9">Statistische sector</option>
                 </select>
 
                 <button id="clear-selection">Wis selectie</button>
             </div>
-            <h3>Informatie over <span id="selection-list"></span> (<span id="selection-count"></span> gebieden)</h3>
+            <h3>Klik hieronder voor meer over <span id="selection-list"></span> (<span id="selection-count"></span> gebieden)</h3>
             <div id="linkcontainer"></div>
-            <p>De links hierboven geven je een rapport of een vertrekproject op basis van de gebieden die je op de kaart hebt aangeklikt. Standaard tonen we gemeenten, maar je kan dit ook voor deelgemeenten en statistische sectoren. Dan zijn er wel minder of geen rapporten beschikbaar.</p>
+            <p>De links hierboven geven je een rapport of een vertrekproject op basis van de gebieden die je op de kaart hebt aangeklikt. Standaard tonen we gemeenten, maar je kan dit ook voor deelgemeenten, wijken en statistische sectoren. 
+            Dan zijn er wel minder of geen rapporten beschikbaar.</p>
             <p>Volledige lijst gebieden: <span id="selection-longlist"></span></p>
         </section>
         <div>&nbsp;</div>
@@ -81,6 +84,7 @@ input_geo=input
         var vectorLayer;
         var markerLayer;
         var markerFeature;
+        var mapSizeTimeOut;
         var selectInteraction;
         var parameters = '#show(code(input_geo))#';
 
@@ -88,30 +92,30 @@ input_geo=input
             parameters = parameters.split(',');
         };
 
-        J$(document).ready(function() {
-            J$('##vectorlayer').off().on('change', function() {
+        $(document).ready(function() {
+            $('##vectorlayer').off().on('change', function() {
                 loadGeoJSON(false);
                 clearSelection();
             });
 
-            J$('##clear-selection').off().on('click', function() {
+            $('##clear-selection').off().on('click', function() {
                 clearSelection();
             });
 
-            J$('##geocode').off().on('keyup', function(event) {
-                var text = J$(this).val();
+            $('##geocode').off().on('keyup', function(event) {
+                var text = $(this).val();
 
-                J$.getJSON('/jive/Presentation/GetAddressLocations', {
+                $.getJSON('/jive/Presentation/GetAddressLocations', {
                     searchTerm: text
                 }, function(json) {
-                    J$('##geocode-result').empty();
+                    $('##geocode-result').empty();
 
                     if (typeof json.locations !== 'undefined' && json.locations.length > 0) {
                         new ol.Collection(json.locations).forEach(function(item) {
                             var li = document.createElement('li');
                             var a = document.createElement('a');
 
-                            J$(a).attr('href', '##').text(item.address).on('click', function(event) {
+                            $(a).attr('href', '##').text(item.address).on('click', function(event) {
                                 event.preventDefault();
 
                                 var coordinates = item.coord.replace(/,/g, '.').split(' ');
@@ -124,7 +128,7 @@ input_geo=input
                                 map.getView().animate({zoom: 15, center: xy});
                             });
 
-                            J$(li).append(a).appendTo('##geocode-result');
+                            $(li).append(a).appendTo('##geocode-result');
                         });
                     }
                 });
@@ -136,8 +140,11 @@ input_geo=input
             setTimeout(setOpenLayers, 1000);
         });
 
-        J$(window).on('resize', function() {
-            map.updateSize();
+        $(window).on('resize', function() {
+            clearTimeout(mapSizeTimeOut);
+            mapSizeTimeOut = setTimeout(function(){ map.updateSize();}, 300);
+
+            // map.updateSize();
         });
 
         function setOpenLayers() {
@@ -189,8 +196,8 @@ input_geo=input
                     }
                 }),
                 view: new ol.View({
-                    center: [0, 0],
-                    zoom: 0
+                    center: [465195,6623115],
+                    zoom: 8
                 })
             });
 
@@ -214,8 +221,8 @@ input_geo=input
                     if (mode === null) {
                         mode = item[1];
                         switch (mode) {
-                            case 'gemeente': J$("##vectorlayer").val(5); break;
-                            case 'deelgemeente': J$("##vectorlayer").val(6); break;
+                            case 'gemeente': $("##vectorlayer").val(5); break;
+                            case 'deelgemeente': $("##vectorlayer").val(6); break;
                         }
 
                         loadGeoJSON(true, defaultSelection);
@@ -227,18 +234,19 @@ input_geo=input
         }
 
         function loadGeoJSON(fit, selection) {
-            var layer = parseInt(J$("##vectorlayer").val());
+            var layer = parseInt($("##vectorlayer").val());
 
             var file = null;
             switch (layer) {
                 case 5: file = 'https://provincies.incijfers.be/Report/GeoJSON/gemeente4326_simp.txt'; break; // dit zijn gepubliceerde versies. Als je de file aanpast, moet je tijdelijke admin voor report zetten om op de nog-niet-gepubliceerde versie te werken
                 case 6: file = 'https://provincies.incijfers.be/Report/GeoJSON/deelgemeente4326_simp.txt'; break;
+                case 7: file = 'https://provincies.incijfers.be/Report/GeoJSON/ggw74326_simp.txt'; break;
                 case 9: file = 'https://provincies.incijfers.be/Report/GeoJSON/statsec4326_simp.txt'; break;
             };
 
             if (file !== null) {
                 vectorLayer.getSource().clear();
-                J$.getJSON(file, function (json) {
+                $.getJSON(file, function (json) {
                     vectorLayer.getSource().addFeatures(
                         (new ol.format.GeoJSON()).readFeatures(json, {featureProjection:'EPSG:3857'})
                     );
@@ -264,7 +272,7 @@ input_geo=input
         }
 
         function displaySelection() {
-            var layer = parseInt(J$("##vectorlayer").val());
+            var layer = parseInt($("##vectorlayer").val());
             var count = selectInteraction.getFeatures().getLength();
 
             var selection = [];
@@ -277,35 +285,98 @@ input_geo=input
                 switch (layer) {
                     case 5: selection.push('gemeente_' + properties.geoitem); break;
                     case 6: selection.push('deelgemeente_' + properties.geoitem); break;
+                    case 7: selection.push('ggw7_' + properties.geoitem); break;
                     case 9: selection.push('statsec_' + properties.geoitem); break;
                 };
             });
 
-            J$('##selection-count').text(count);
-            J$('##selection-list').text(list.slice(0, 3).join(', ') + (list.length > 3 ? ', ...' : ''));
-            J$('##selection-longlist').text(list.join(', '));
-            J$('##linkcontainer').empty();
+            $('##selection-count').text(count);
+            $('##selection-list').text(list.slice(0, 3).join(', ') + (list.length > 3 ? ', ...' : ''));
+            $('##selection-longlist').text(list.join(', '));
+            $('##linkcontainer').empty();
 
-            if (layer !== 9) {
-                J$('##linkcontainer').append(
-                    J$(document.createElement('a')).
-                        attr('href', 'https://provincies.incijfers.be/jive?report=steekkaart_demografie&keepworkspace=true&input_geo=' + selection.join(',')).
+            if (layer == 5) {
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=steekkaart_demografie&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Steekkaart Demografie'),
+                        '<br>'
+                );            
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=steekkaart_economie&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Steekkaart Economie'),
+                        '<br>'
+                );                 
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_wonen&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Rapport Wonen'),
+                        '<br>'
+                );                 
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_armoede&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Rapport Armoede'),
+                        '<br>'
+                );               
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_onderwijs&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Rapport Onderwijs'),
+                        '<br>'
+                );              
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_detailhandel&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Rapport Detailhandel'),
+                        '<br><br>'
+                ); 
+            }
+            if (layer == 6) {
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=steekkaart_demografie&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
                         text('Steekkaart Demografie')
                 );
-                J$('##linkcontainer').append('<br><br>');
+                $('##linkcontainer').append('<br><br>');
             }
-            J$('##linkcontainer').append(
-                J$(document.createElement('a')).
-                    attr('href', 'https://provincies.incijfers.be/jive?var=v1101_t&geoitem_codes=' + selection.join(',')).
-                    text('Vertrekproject voor je selectie')
+            $('##linkcontainer').append(
+                $(document.createElement('a')).
+                    attr({
+                            href: 'https://provincies.incijfers.be/databank?var=v1111a_tot_bevolking&keepworkspace=true&geoitem_codes=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                    text('Maak zelf tabellen, kaarten en grafieken over dit gebied')
             );
         }
 
         function clearSelection() {
             selectInteraction.getFeatures().clear();
 
-            J$('##selection-count').empty();
-            J$('##selection-list').empty();
+            $('##selection-count').empty();
+            $('##selection-list').empty();
         }
     </script>
 </body>
