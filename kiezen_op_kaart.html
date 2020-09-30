@@ -1,3 +1,8 @@
+<!DOCTYPE html>
+<html lang="nl-NL">
+<!-- verantwoordelijke: Joost
+TODO: sommige rapporten (subgemeentelijk) zijn slechts voor een enkel gebied beschikbaar; dus moeten vervallen indien meerdere gekozen?
+meer info: https://github.com/provinciesincijfers/kiezen_op_kaart/-->
 #
 input_geo=input
 {
@@ -10,8 +15,7 @@ input_geo=input
     Hidden: true;
 }
 #
-<!DOCTYPE html>
-<html lang="nl-NL">
+
 <head>
     <meta charset="utf-8" />
     <title>Stel een gebied samen via kaart</title>
@@ -45,6 +49,13 @@ input_geo=input
         margin: 5px 0;
         padding: 0 20px;
     }
+
+@supports NOT (grid-template-columns) {
+  .enkelIE {
+    visibility: hidden;
+    display: none;
+  }
+}
     </style>
 </head>
 <body class="swingreport">
@@ -52,10 +63,16 @@ input_geo=input
     <section class="container">
         <section class="hoofdstuk">
             <h1>Stel een gebied samen via kaart</h1>
+            
+      <div class="enkelIE" style="background-color: ##e2e224;">
+	          <p>Je gebruikt een browser die deze pagina wellicht niet correct weergeeft. Probeer het ook eens met een andere browser zoals Firefox, Chrome of Edge.</p>	      
+	  </div>
+            
+            
             <div id="map" class="map">
                 <div class="map-overlay">
                     <div>
-                        <input type="text" name="geocode" id="geocode" placeholder="Zoek adres">
+                        <input type="text" name="geocode" id="geocode" placeholder="Zoek adres" autocomplete="off">
                         <ol id="geocode-result"></ol>
                     </div>
                 </div>
@@ -73,8 +90,12 @@ input_geo=input
             </div>
             <h3>Klik hieronder voor meer over <span id="selection-list"></span> (<span id="selection-count"></span> gebieden)</h3>
             <div id="linkcontainer"></div>
-            <p>De links hierboven geven je een rapport of een vertrekproject op basis van de gebieden die je op de kaart hebt aangeklikt. Standaard tonen we gemeenten, maar je kan dit ook voor deelgemeenten, wijken en statistische sectoren. 
-            Dan zijn er wel minder of geen rapporten beschikbaar.</p>
+            <p>De links hierboven geven je een rapport of een vertrekproject op basis van de gebieden die je op de kaart hebt aangeklikt. 
+            De kaart toont bij laden de gemeenten, maar je kan dit ook voor deelgemeenten, wijken en statistische sectoren. 
+            Dan zijn er wel minder rapporten beschikbaar. Er is een adreszoeker beschikbaar om gemakkelijker de locatie te vinden die je interesseert.</p>
+            <p>Enkele rapporten zijn slechts voor &eacute;&eacute;n gebied beschikbaar. Wanneer je twee gebieden kiest, dan worden deze met elkaar vergeleken. 
+            Als je meer dan twee gebieden kiest, dan worden deze opgeteld tot je "eigen regio op maat".</p>
+            <p>De rapporten worden geopend in een nieuw tabblad. Je kan de URL opslaan om in de toekomst dezelfde set gebieden te bevragen.</p>
             <p>Volledige lijst gebieden: <span id="selection-longlist"></span></p>
         </section>
         <div>&nbsp;</div>
@@ -238,10 +259,10 @@ input_geo=input
 
             var file = null;
             switch (layer) {
-                case 5: file = 'https://provincies.incijfers.be/Report/GeoJSON/gemeente4326_simp.txt'; break; // dit zijn gepubliceerde versies. Als je de file aanpast, moet je tijdelijke admin voor report zetten om op de nog-niet-gepubliceerde versie te werken
-                case 6: file = 'https://provincies.incijfers.be/Report/GeoJSON/deelgemeente4326_simp.txt'; break;
-                case 7: file = 'https://provincies.incijfers.be/Report/GeoJSON/ggw74326_simp.txt'; break;
-                case 9: file = 'https://provincies.incijfers.be/Report/GeoJSON/statsec4326_simp.txt'; break;
+                case 5: file = 'GeoJSON/gemeente.txt'; break; 
+                case 6: file = 'GeoJSON/deelgemeente.txt'; break;
+                case 7: file = 'GeoJSON/ggw7.txt'; break;
+                case 9: file = 'GeoJSON/statsec.txt'; break;
             };
 
             if (file !== null) {
@@ -295,71 +316,248 @@ input_geo=input
             $('##selection-longlist').text(list.join(', '));
             $('##linkcontainer').empty();
 
+        if (count > 0) {
             if (layer == 5) {
+                 $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=omgevingsanalyse_steekkaart&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Kerncijfers'),
+                        '<br>'
+                ); 
+                if (count == 1) {
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=tabellenrapport_bevolking&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Cijfers bevolking opgelijst'),
+                        '<br>'
+                );                    
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=tabellenrapport_huishoudens&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Cijfers huishoudens opgelijst'),
+                        '<br>'
+                );
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_economie&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Cijfers economie opgelijst'),
+                        '<br>'
+                );
+                }
+                 $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_demografie&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Rapport bevolking en huishoudens'),
+                        '<br>'
+                );
+
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_natioherkomst&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Rapport nationaliteit en herkomst'),
+                        '<br>'
+                );
                 $('##linkcontainer').append(
                     $(document.createElement('a')).
                         attr({
                             href: 'https://provincies.incijfers.be/jive/report/?id=steekkaart_demografie&keepworkspace=true&input_geo=' + selection.join(','),
                             target: '_blank'
                             }).
-                        text('Steekkaart Demografie'),
+                        text('Steekkaart bevolking'),
                         '<br>'
-                );            
+                );
                 $('##linkcontainer').append(
                     $(document.createElement('a')).
                         attr({
                             href: 'https://provincies.incijfers.be/jive/report/?id=steekkaart_economie&keepworkspace=true&input_geo=' + selection.join(','),
                             target: '_blank'
                             }).
-                        text('Steekkaart Economie'),
+                        text('Steekkaart economie'),
                         '<br>'
                 );                 
-                $('##linkcontainer').append(
-                    $(document.createElement('a')).
-                        attr({
-                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_wonen&keepworkspace=true&input_geo=' + selection.join(','),
-                            target: '_blank'
-                            }).
-                        text('Rapport Wonen'),
-                        '<br>'
-                );                 
-                $('##linkcontainer').append(
-                    $(document.createElement('a')).
-                        attr({
-                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_armoede&keepworkspace=true&input_geo=' + selection.join(','),
-                            target: '_blank'
-                            }).
-                        text('Rapport Armoede'),
-                        '<br>'
-                );               
-                $('##linkcontainer').append(
-                    $(document.createElement('a')).
-                        attr({
-                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_onderwijs&keepworkspace=true&input_geo=' + selection.join(','),
-                            target: '_blank'
-                            }).
-                        text('Rapport Onderwijs'),
-                        '<br>'
-                );              
                 $('##linkcontainer').append(
                     $(document.createElement('a')).
                         attr({
                             href: 'https://provincies.incijfers.be/jive/report/?id=rapport_detailhandel&keepworkspace=true&input_geo=' + selection.join(','),
                             target: '_blank'
                             }).
-                        text('Rapport Detailhandel'),
-                        '<br><br>'
+                        text('Rapport detailhandel'),
+                        '<br>'
                 ); 
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_onderwijs&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Rapport onderwijs'),
+                        '<br>'
+                );              
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_wonen&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Rapport wonen'),
+                        '<br>'
+                );                 
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_klimaat&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Rapport klimaat'),
+                        '<br>'
+                ); 
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_veiligheid&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Rapport veiligheid'),
+                        '<br>'
+                ); 
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_armoede&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Rapport armoede'),
+                        '<br>'
+                );               
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_ouderenzorg&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Rapport ouderenzorg'),
+                        '<br><br>'
+                );
             }
             if (layer == 6) {
+                if (count == 1) {
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=tabellenrapport_bevolking&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Cijfers bevolking opgelijst'),
+                        '<br>'
+                );
+               $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=tabellenrapport_huishoudens&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Cijfers huishoudens opgelijst'),
+                        '<br>'
+                );
+                }
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_natioherkomst&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Rapport nationaliteit en herkomst'),
+                        '<br>'
+                );
                 $('##linkcontainer').append(
                     $(document.createElement('a')).
                         attr({
                             href: 'https://provincies.incijfers.be/jive/report/?id=steekkaart_demografie&keepworkspace=true&input_geo=' + selection.join(','),
                             target: '_blank'
                             }).
-                        text('Steekkaart Demografie')
+                        text('Steekkaart demografie')
                 );
+
+                $('##linkcontainer').append('<br><br>');
+            }
+            if (layer == 7) {
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_natioherkomst&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Rapport nationaliteit en herkomst'),
+                        '<br>'
+                );
+                if (count==1) {
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=tabellenrapport_bevolking&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Cijfers bevolking opgelijst'),
+                        '<br>'
+                );
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=tabellenrapport_huishoudens&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Cijfers huishoudens opgelijst')
+                );
+                }
+                $('##linkcontainer').append('<br><br>');
+            }
+            if (layer == 9) {
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=rapport_natioherkomst&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Rapport nationaliteit en herkomst'),
+                        '<br>'
+                );
+                if (count==1) {
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=tabellenrapport_bevolking&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Cijfers bevolking opgelijst'),
+                        '<br>'
+                );
+                $('##linkcontainer').append(
+                    $(document.createElement('a')).
+                        attr({
+                            href: 'https://provincies.incijfers.be/jive/report/?id=tabellenrapport_huishoudens&keepworkspace=true&input_geo=' + selection.join(','),
+                            target: '_blank'
+                            }).
+                        text('Cijfers huishoudens opgelijst')
+                );
+                }
                 $('##linkcontainer').append('<br><br>');
             }
             $('##linkcontainer').append(
@@ -370,6 +568,7 @@ input_geo=input
                             }).
                     text('Maak zelf tabellen, kaarten en grafieken over dit gebied')
             );
+        }
         }
 
         function clearSelection() {
