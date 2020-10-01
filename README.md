@@ -13,4 +13,4 @@ Ontwikkeld door [@jbelien](https://github.com/jbelien) via [GEO-6 BVBA](https://
 - hou enkel de unieke code en de naam. Gebruik hiervoor veldnamen "geoitem" en "naam".
 - sla op als geojson in WGS84 (epsg 4326). Precisie van de coordinaten eventueel van 15 naar 6. 
 - vereenvoudig de geometrie; file-size liefst zo veel mogelijk onder de 5 mb. http://mapshaper.org/ is hier heel handig voor. De output daar is een .json bestand, maar eigenlijk is dit GeoJSON. Maakt niet uit, en wij veranderen de extentie toch naar .txt om het handig bewerkbaar binnen Swing te maken.
-- wij bewaren de bestanden in de map https://provincies.incijfers.be/Report/GeoJSON/ met namen als "gemeente4326_simp.txt". Opgelet: de raportcode verwijst naar de -gepubliceerde- versie. Als je aan het testen bent, moet je dus nog /admin toevoegen aan de URL van de bestanden.
+- wij bewaren de bestanden in de map https://provincies.incijfers.be/Report/GeoJSON/ met namen als "gemeente.txt". Opgelet: je browser bewaart een lokale kopie van de geometrie-bestanden. Doe dus een harde refresh bij het testen (of gebruik de Inspector van je browser).
