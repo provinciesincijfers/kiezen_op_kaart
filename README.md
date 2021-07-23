@@ -8,8 +8,7 @@ Ontwikkeld door [@jbelien](https://github.com/jbelien) via [GEO-6 BVBA](https://
 
 ## Gebiedsniveaus toevoegen/aanpassen
 
-* gebieden
-- open je geometrie in QGIS
+- open de shapefile (of andere geografisch formaat) van het toe te voegen/aan te passen gebied in QGIS
 - hou enkel de unieke code en de naam. Gebruik hiervoor veldnamen "geoitem" en "naam".
 - sla op als geojson in WGS84 (epsg 4326). Precisie van de coordinaten eventueel van 15 naar 6. 
 - vereenvoudig de geometrie; file-size liefst zo veel mogelijk onder de 5 mb. http://mapshaper.org/ is hier heel handig voor. De output daar is een .json bestand, maar eigenlijk is dit GeoJSON. Maakt niet uit, en wij veranderen de extentie toch naar .txt om het handig bewerkbaar binnen Swing te maken.
